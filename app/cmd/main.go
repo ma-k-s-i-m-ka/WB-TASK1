@@ -1,15 +1,21 @@
 package main
 
 import (
+	"WBL0/app/internal/cache"
+	"WBL0/app/internal/delivery"
+	"WBL0/app/internal/item"
+	"WBL0/app/internal/order"
+	"WBL0/app/internal/payment"
 	"WBL0/app/internal/server"
 	"WBL0/app/pkg/config"
 	"WBL0/app/pkg/logger"
 	"WBL0/app/pkg/nats"
 	postgres "WBL0/app/pkg/storage"
-
 	"context"
 	"errors"
 	"flag"
+	"fmt"
+	"github.com/jackc/pgx/v4"
 	"github.com/julienschmidt/httprouter"
 	"golang.org/x/exp/slog"
 	"net/http"
@@ -33,6 +39,17 @@ func main() {
 	}
 	log.Info("connected to database")
 
+	allCache := cache.NewCache()
+	if err = loadAllCache(log, dbConn, allCache); err != nil {
+		log.Error("Failed to preload caches:", err)
+	}
+	log.Info("records from the database are added to the cache")
+
+	fmt.Println("Cache after loading data:")
+	for key, value := range allCache.Payments {
+		fmt.Printf("Key: %d, Value: %+v\n", key, value)
+	}
+
 	natsConn, err := nats.ConnectNATS(*cfg)
 	if err != nil {
 		log.Fatal("cannot connect to NATS:", err)
@@ -42,7 +59,7 @@ func main() {
 	router := httprouter.New()
 	log.Info("initialized httprouter")
 
-	srv := server.NewServer(cfg, router, &log)
+	srv := server.NewServer(cfg, router, &log, allCache)
 	log.Info("starting the server")
 
 	quit := make(chan os.Signal, 1)
@@ -82,4 +99,25 @@ func main() {
 		log.Error("server shutdown failed:", err)
 	}
 	log.Info("server has been shutted down")
+}
+
+func loadAllCache(log logger.Logger, dbConn *pgx.Conn, cache *cache.Cache) error {
+	if err := delivery.CacheForDelivery(dbConn, cache); err != nil {
+		log.Error("Failed to load delivery data into cache:", err)
+		return err
+	}
+	if err := order.CacheForOrder(dbConn, cache); err != nil {
+		log.Error("Failed to load order data into cache:", err)
+		return err
+	}
+
+	if err := item.CacheForItem(dbConn, cache); err != nil {
+		log.Error("Failed to load item data into cache:", err)
+		return err
+	}
+	if err := payment.CacheForPayment(dbConn, cache); err != nil {
+		log.Error("Failed to load payment data into cache:", err)
+		return err
+	}
+	return nil
 }

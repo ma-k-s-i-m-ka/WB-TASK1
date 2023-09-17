@@ -96,3 +96,41 @@ func (d *OrderStorage) FindById(uid string) (*CreateOrderDTO, error) {
 	}
 	return order, nil
 }
+
+func CacheForOrder(dbConn *pgx.Conn, cache *cache.Cache) error {
+
+	rows, err := dbConn.Query(context.Background(), `SELECT * FROM "order"`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var order CreateOrderDTO
+		err = rows.Scan(
+			&order.OrderUID, &order.TrackNumber, &order.Entry, &order.Delivery, &order.Payment, &order.Items,
+			&order.Locale, &order.InternalSignature, &order.CustomerID, &order.DeliveryService,
+			&order.ShardKey, &order.SMID, &order.DateCreated, &order.OofShard)
+		if err != nil {
+			return err
+		}
+		modelOrder := &model.Order{
+			OrderUID:          order.OrderUID,
+			TrackNumber:       order.TrackNumber,
+			Entry:             order.Entry,
+			Delivery:          order.Delivery,
+			Payment:           order.Payment,
+			Items:             order.Items,
+			Locale:            order.Locale,
+			InternalSignature: order.InternalSignature,
+			CustomerID:        order.CustomerID,
+			DeliveryService:   order.DeliveryService,
+			ShardKey:          order.ShardKey,
+			SMID:              order.SMID,
+			DateCreated:       order.DateCreated,
+			OofShard:          order.OofShard,
+		}
+		cache.Orders[order.OrderUID] = modelOrder
+	}
+	return nil
+}

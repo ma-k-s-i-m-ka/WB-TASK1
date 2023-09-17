@@ -4,7 +4,6 @@ import (
 	"WBL0/app/internal/cache"
 	"WBL0/app/internal/delivery"
 	"WBL0/app/internal/item"
-	"WBL0/app/internal/model"
 	"WBL0/app/internal/order"
 	"WBL0/app/internal/payment"
 	"WBL0/app/pkg/config"
@@ -15,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/julienschmidt/httprouter"
 	"github.com/nats-io/nats.go"
+	"github.com/pkg/browser"
 	"log"
 	"net/http"
 	"time"
@@ -28,13 +28,7 @@ type Server struct {
 	cache   *cache.Cache
 }
 
-func NewServer(cfg *config.Config, handler *httprouter.Router, log *logger.Logger) *Server {
-	cache := &cache.Cache{
-		Deliveries: make(map[int64]*model.Delivery),
-		Payments:   make(map[int64]*model.Payment),
-		Items:      make(map[int64]*model.Item),
-		Orders:     make(map[string]*model.Order),
-	}
+func NewServer(cfg *config.Config, handler *httprouter.Router, log *logger.Logger, cache *cache.Cache) *Server {
 	return &Server{
 		srv: &http.Server{
 			Handler:      handler,
@@ -81,6 +75,15 @@ func (s *Server) Run(dbConn *pgx.Conn, natsConn *nats.Conn) error {
 	if err != nil {
 		log.Fatal("cannot subscribe to NATS:", err)
 	}
+
+	fs := http.FileServer(http.Dir("public"))
+	s.handler.Handler(http.MethodGet, "/", fs)
+	s.handler.Handler(http.MethodGet, "/index.html", fs)
+	err = browser.OpenURL("http://" + s.srv.Addr + "/")
+	if err != nil {
+		return err
+	}
+
 	return s.srv.ListenAndServe()
 }
 

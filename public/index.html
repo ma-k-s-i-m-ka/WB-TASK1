@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Entity By ID</title>
+</head>
+<body>
+<h1>Get Entity By ID</h1>
+
+<label for="entityType">Выберите тип сущности:</label>
+<select id="entityType">
+    <option value="order">Order</option>
+    <option value="delivery">Delivery</option>
+    <option value="item">Item</option>
+    <option value="payment">Payment</option>
+</select>
+
+<label for="entityId">Введите ID сущности:</label>
+<input type="text" id="entityId">
+<button onclick="getEntity()">Получить сущность</button>
+
+<div id="result"></div>
+
+<script>
+    function getEntity() {
+        const entityType = document.getElementById('entityType').value;
+        const entityId = document.getElementById('entityId').value;
+
+        if (entityType === "order") {
+            fetch(`http://localhost:3002/order/uid?uid=${encodeURIComponent(entityId)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.innerText = JSON.stringify(data);
+                })
+                .catch(error => {
+                    console.error(error);
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.innerText = "Произошла ошибка при выполнении запроса.";
+                });
+        } else {
+            fetch(`http://localhost:3002/${entityType}/${entityId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.innerText = JSON.stringify(data);
+                })
+                .catch(error => {
+                    console.error(error);
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.innerText = "Произошла ошибка при выполнении запроса.";
+                });
+        }
+    }
+</script>
+</body>
+</html>

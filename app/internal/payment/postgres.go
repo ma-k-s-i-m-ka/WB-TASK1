@@ -96,3 +96,39 @@ func (d *PaymentStorage) FindById(id int64) (*Payment, error) {
 	}
 	return payment, nil
 }
+func CacheForPayment(dbConn *pgx.Conn, cache *cache.Cache) error {
+
+	rows, err := dbConn.Query(context.Background(), `SELECT * FROM Payment`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var payment Payment
+		err = rows.Scan(
+			&payment.ID, &payment.Transaction, &payment.RequestID, &payment.Currency, &payment.Provider, &payment.Amount,
+			&payment.PaymentDt, &payment.Bank, &payment.DeliveryCost, &payment.GoodsTotal, &payment.CustomFee)
+
+		if err != nil {
+			return err
+		}
+
+		modelPayment := &model.Payment{
+			ID:           payment.ID,
+			Transaction:  payment.Transaction,
+			RequestID:    payment.RequestID,
+			Currency:     payment.Currency,
+			Provider:     payment.Provider,
+			Amount:       payment.Amount,
+			PaymentDt:    payment.PaymentDt,
+			Bank:         payment.Bank,
+			DeliveryCost: payment.DeliveryCost,
+			GoodsTotal:   payment.GoodsTotal,
+			CustomFee:    payment.CustomFee,
+		}
+
+		cache.Payments[payment.ID] = modelPayment
+	}
+	return nil
+}

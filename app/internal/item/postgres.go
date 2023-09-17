@@ -95,3 +95,40 @@ func (d *ItemStorage) FindById(id int64) (*Item, error) {
 	}
 	return item, nil
 }
+func CacheForItem(dbConn *pgx.Conn, cache *cache.Cache) error {
+
+	rows, err := dbConn.Query(context.Background(), `SELECT * FROM Item`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var item Item
+		err = rows.Scan(
+			&item.ID, &item.ChrtID, &item.TrackNumber, &item.Price, &item.RID, &item.Name,
+			&item.Sale, &item.Size, &item.TotalPrice, &item.NmID, &item.Brand, &item.Status)
+
+		if err != nil {
+			return err
+		}
+
+		modelItem := &model.Item{
+			ID:          item.ID,
+			ChrtID:      item.ChrtID,
+			TrackNumber: item.TrackNumber,
+			Price:       item.Price,
+			RID:         item.RID,
+			Name:        item.Name,
+			Sale:        item.Sale,
+			Size:        item.Size,
+			TotalPrice:  item.TotalPrice,
+			NmID:        item.NmID,
+			Brand:       item.Brand,
+			Status:      item.Status,
+		}
+
+		cache.Items[item.ID] = modelItem
+	}
+	return nil
+}

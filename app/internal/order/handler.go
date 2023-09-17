@@ -49,6 +49,7 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	var input Order
 
 	if err := response.ReadJSON(w, r, &input); err != nil {
+		h.log.Info("Invalid data type")
 		response.BadRequest(w, err.Error(), apperror.ErrInvalidRequestBody.Error())
 		return
 	}

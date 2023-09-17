@@ -92,3 +92,34 @@ func (d *DeliveryStorage) FindById(id int64) (*Delivery, error) {
 	}
 	return delivery, nil
 }
+
+func CacheForDelivery(dbConn *pgx.Conn, cache *cache.Cache) error {
+
+	rows, err := dbConn.Query(context.Background(), `SELECT * FROM Delivery`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var delivery Delivery
+		err = rows.Scan(
+			&delivery.ID, &delivery.Name, &delivery.Phone, &delivery.Zip,
+			&delivery.City, &delivery.Address, &delivery.Region, &delivery.Email)
+		if err != nil {
+			return err
+		}
+		modelDelivery := &model.Delivery{
+			ID:      delivery.ID,
+			Name:    delivery.Name,
+			Phone:   delivery.Phone,
+			Zip:     delivery.Zip,
+			City:    delivery.City,
+			Address: delivery.Address,
+			Region:  delivery.Region,
+			Email:   delivery.Email,
+		}
+		cache.Deliveries[delivery.ID] = modelDelivery
+	}
+	return nil
+}
